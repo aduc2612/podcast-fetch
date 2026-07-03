@@ -181,6 +181,103 @@
         transform: scale(0.98);
       }
 
+      .history-btn {
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        background: rgba(29, 185, 84, 0.1);
+        color: #1db954;
+        border: 1px solid rgba(29, 185, 84, 0.3);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.3s, transform 0.1s;
+      }
+
+      .history-btn:hover {
+        background: rgba(29, 185, 84, 0.25);
+      }
+
+      .history-btn:active {
+        transform: scale(0.98);
+      }
+
+      .history-panel {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        display: none;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .history-panel.visible {
+        display: block;
+      }
+
+      .history-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+      }
+
+      .history-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1db954;
+      }
+
+      .history-close {
+        background: none;
+        border: none;
+        color: #888;
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 0.25rem 0.5rem;
+      }
+
+      .history-close:hover {
+        color: #fff;
+      }
+
+      .history-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: background 0.2s, border-color 0.2s;
+      }
+
+      .history-item:hover {
+        background: rgba(29, 185, 84, 0.1);
+        border-color: rgba(29, 185, 84, 0.3);
+      }
+
+      .history-item-topic {
+        font-weight: 600;
+        color: #fff;
+        font-size: 1rem;
+      }
+
+      .history-item-meta {
+        color: #888;
+        font-size: 0.85rem;
+        text-align: right;
+      }
+
+      .history-empty {
+        color: #666;
+        text-align: center;
+        padding: 1rem;
+      }
+
       .episode-card {
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -330,6 +427,12 @@
           width: 100%;
         }
 
+        .history-btn {
+          padding: 0.8rem 1rem;
+          font-size: 1rem;
+          width: 100%;
+        }
+
         .log-section {
           padding: 1rem;
           font-size: 0.8rem;
@@ -373,7 +476,16 @@
             style="width: 80px; text-align: center;"
           />
           <button id="searchBtn" onclick="search()">Find Episodes</button>
+          <button class="history-btn" id="historyBtn" onclick="toggleHistory()">📋 History</button>
         </div>
+      </div>
+
+      <div class="history-panel" id="historyPanel">
+        <div class="history-header">
+          <span class="history-title">📋 Saved Queries</span>
+          <button class="history-close" onclick="toggleHistory()">✕</button>
+        </div>
+        <div id="historyContent"></div>
       </div>
 
       <div class="log-section" id="logSection">
@@ -397,6 +509,9 @@
       const topicInput = document.getElementById("topicInput");
       const resultCountInput = document.getElementById("resultCount");
       const searchBtn = document.getElementById("searchBtn");
+      const historyBtn = document.getElementById("historyBtn");
+      const historyPanel = document.getElementById("historyPanel");
+      const historyContent = document.getElementById("historyContent");
       const logSection = document.getElementById("logSection");
       const logContent = document.getElementById("logContent");
       const resultsSection = document.getElementById("resultsSection");
@@ -561,6 +676,80 @@
         const div = document.createElement("div");
         div.textContent = text;
         return div.innerHTML;
+      }
+
+      function toggleHistory() {
+        const isVisible = historyPanel.classList.contains("visible");
+        if (isVisible) {
+          historyPanel.classList.remove("visible");
+        } else {
+          loadHistory();
+          historyPanel.classList.add("visible");
+        }
+      }
+
+      async function loadHistory() {
+        historyContent.innerHTML = '<div class="history-empty">Loading...</div>';
+        try {
+          const response = await fetch("/api/saved-queries");
+          const queries = await response.json();
+
+          if (queries.length === 0) {
+            historyContent.innerHTML = '<div class="history-empty">No saved queries yet. Run a search first!</div>';
+            return;
+          }
+
+          historyContent.innerHTML = queries
+            .map((q) => {
+              const date = new Date(q.created_at + "Z");
+              const timeAgo = getTimeAgo(date);
+              return `
+                <div class="history-item" onclick="loadSavedQuery(${q.id})">
+                  <span class="history-item-topic">${escapeHtml(q.topic)}</span>
+                  <span class="history-item-meta">${q.result_count} results · ${timeAgo}</span>
+                </div>
+              `;
+            })
+            .join("");
+        } catch (err) {
+          historyContent.innerHTML = '<div class="history-empty">Failed to load history</div>';
+          console.error("Failed to load history:", err);
+        }
+      }
+
+      async function loadSavedQuery(id) {
+        historyPanel.classList.remove("visible");
+        clearResults();
+        logSection.classList.add("visible");
+        addLogEntry("📂 Loading saved query...");
+
+        try {
+          const response = await fetch(`/api/saved-queries/${id}`);
+          const data = await response.json();
+
+          if (data.error) {
+            addLogEntry(`ERROR: ${data.error}`, "error");
+            showError(data.error);
+            return;
+          }
+
+          addLogEntry(`✅ Loaded "${data.topic}" (${data.episodes.length} episodes)`);
+          displayResults({ topic: data.topic, episodes: data.episodes });
+        } catch (err) {
+          addLogEntry(`FETCH ERROR: ${err.message}`, "error");
+          showError(err.message);
+        }
+      }
+
+      function getTimeAgo(date) {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        if (seconds < 60) return "just now";
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ago`;
       }
     </script>
   </body>

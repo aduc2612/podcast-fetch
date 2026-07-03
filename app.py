@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import sqlite3
 import traceback
 from flask import Flask, request, jsonify, Response, send_from_directory
 from dotenv import load_dotenv
@@ -17,6 +18,25 @@ app = Flask(__name__, static_folder='public')
 # Load config
 with open('config.json', 'r') as f:
     config = json.load(f)
+
+# SQLite setup
+DB_PATH = os.path.join(os.path.dirname(__file__), 'saved_queries.db')
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS saved_queries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            topic TEXT NOT NULL,
+            result_count INTEGER,
+            episodes TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
 
 # Initialize OpenRouter client (uses OpenAI SDK)
 openrouter_client = OpenAI(
@@ -249,6 +269,18 @@ def search():
                 'episodes': relevant_episodes
             })
 
+            # Save to database
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                conn.execute(
+                    'INSERT INTO saved_queries (topic, result_count, episodes) VALUES (?, ?, ?)',
+                    (topic, result_count, json.dumps(relevant_episodes))
+                )
+                conn.commit()
+                conn.close()
+            except Exception as db_err:
+                print(f'[WARN] Failed to save query: {db_err}')
+
         except Exception as e:
             yield send_sse_event('error', {
                 'message': str(e),
@@ -262,6 +294,37 @@ def search():
 def get_config():
     """Get current podcast configuration"""
     return jsonify(config)
+
+
+@app.route('/api/saved-queries')
+def get_saved_queries():
+    """List all saved queries (most recent first)"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        'SELECT id, topic, result_count, created_at FROM saved_queries ORDER BY id DESC'
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in rows])
+
+
+@app.route('/api/saved-queries/<int:query_id>')
+def get_saved_query(query_id):
+    """Get a single saved query with its full results"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        'SELECT id, topic, result_count, episodes, created_at FROM saved_queries WHERE id = ?',
+        (query_id,)
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({'error': 'Query not found'}), 404
+
+    result = dict(row)
+    result['episodes'] = json.loads(result['episodes'])
+    return jsonify(result)
 
 
 if __name__ == '__main__':
