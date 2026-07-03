@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Podcast Fetcher - Language Learning</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          sans-serif;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        color: #e0e0e0;
+        min-height: 100vh;
+        padding: 2rem;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(90deg, #1db954, #1ed760);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: #888;
+        margin-bottom: 2rem;
+      }
+
+      .search-box {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+      }
+
+      .input-group {
+        display: flex;
+        gap: 1rem;
+      }
+
+      input[type="text"] {
+        flex: 1;
+        padding: 1rem 1.5rem;
+        font-size: 1.1rem;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: #fff;
+        outline: none;
+        transition: border-color 0.3s;
+      }
+
+      input[type="text"]:focus {
+        border-color: #1db954;
+      }
+
+      input[type="text"]::placeholder {
+        color: #666;
+      }
+
+      button {
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        background: #1db954;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition:
+          background 0.3s,
+          transform 0.1s;
+      }
+
+      button:hover {
+        background: #1ed760;
+      }
+
+      button:active {
+        transform: scale(0.98);
+      }
+
+      button:disabled {
+        background: #666;
+        cursor: not-allowed;
+      }
+
+      .log-section {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        font-family: "Consolas", "Monaco", "Courier New", monospace;
+        font-size: 0.9rem;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+      }
+
+      .log-section.visible {
+        display: block;
+      }
+
+      .log-entry {
+        padding: 0.3rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .log-entry.status {
+        color: #888;
+      }
+
+      .log-entry.error {
+        color: #ff6b6b;
+        background: rgba(255, 107, 107, 0.1);
+        padding: 0.5rem;
+        border-radius: 4px;
+        margin: 0.5rem 0;
+      }
+
+      .log-entry.success {
+        color: #1db954;
+      }
+
+      .results-section {
+        display: none;
+      }
+
+      .results-section.visible {
+        display: block;
+      }
+
+      .results-header {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: #1db954;
+      }
+
+      .episode-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition:
+          transform 0.2s,
+          border-color 0.2s;
+      }
+
+      .episode-card:hover {
+        transform: translateY(-2px);
+        border-color: #1db954;
+      }
+
+      .episode-number {
+        display: inline-block;
+        background: #1db954;
+        color: #fff;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 28px;
+        font-weight: bold;
+        font-size: 0.9rem;
+        margin-right: 0.5rem;
+      }
+
+      .episode-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 0.5rem;
+      }
+
+      .episode-show {
+        color: #1db954;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .episode-link {
+        display: inline-block;
+        color: #1db954;
+        text-decoration: none;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        transition: color 0.2s;
+      }
+
+      .episode-link:hover {
+        color: #1ed760;
+        text-decoration: underline;
+      }
+
+      .episode-relevance {
+        color: #aaa;
+        font-size: 0.9rem;
+        font-style: italic;
+      }
+
+      .error-box {
+        background: rgba(255, 107, 107, 0.1);
+        border: 1px solid #ff6b6b;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        display: none;
+      }
+
+      .error-box.visible {
+        display: block;
+      }
+
+      .error-title {
+        color: #ff6b6b;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+      }
+
+      .error-message {
+        color: #ff6b6b;
+        white-space: pre-wrap;
+        font-family: "Consolas", "Monaco", "Courier New", monospace;
+        font-size: 0.9rem;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #1db954;
+        animation: spin 1s ease-in-out infinite;
+        margin-right: 0.5rem;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .footer {
+        text-align: center;
+        color: #666;
+        margin-top: 2rem;
+        font-size: 0.9rem;
+      }
+
+      /* Mobile responsive */
+      @media (max-width: 600px) {
+        body {
+          padding: 1rem;
+        }
+
+        h1 {
+          font-size: 1.8rem;
+        }
+
+        .search-box {
+          padding: 1rem;
+        }
+
+        .input-group {
+          flex-direction: column;
+        }
+
+        input[type="text"] {
+          padding: 0.8rem 1rem;
+          font-size: 1rem;
+        }
+
+        input[type="number"] {
+          width: 100% !important;
+          padding: 0.8rem 1rem;
+          font-size: 1rem;
+        }
+
+        button {
+          padding: 0.8rem 1rem;
+          font-size: 1rem;
+          width: 100%;
+        }
+
+        .log-section {
+          padding: 1rem;
+          font-size: 0.8rem;
+        }
+
+        .episode-card {
+          padding: 1rem;
+        }
+
+        .episode-title {
+          font-size: 1rem;
+        }
+
+        .episode-link {
+          word-break: break-all;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎧 Podcast Fetcher</h1>
+      <p class="subtitle">
+        Find the best podcast episodes for language learning
+      </p>
+
+      <div class="search-box">
+        <div class="input-group">
+          <input
+            type="text"
+            id="topicInput"
+            placeholder="Enter a topic (e.g., technology, travel, food...)"
+          />
+          <input
+            type="number"
+            id="resultCount"
+            value="10"
+            min="1"
+            max="50"
+            title="Number of results"
+            style="width: 80px; text-align: center;"
+          />
+          <button id="searchBtn" onclick="search()">Find Episodes</button>
+        </div>
+      </div>
+
+      <div class="log-section" id="logSection">
+        <div id="logContent"></div>
+      </div>
+
+      <div class="results-section" id="resultsSection">
+        <div class="results-header" id="resultsHeader"></div>
+        <div id="resultsContent"></div>
+      </div>
+
+      <div class="error-box" id="errorBox">
+        <div class="error-title">❌ ERROR</div>
+        <div class="error-message" id="errorMessage"></div>
+      </div>
+
+      <div class="footer">Powered by SpotAPI & OpenRouter</div>
+    </div>
+
+    <script>
+      const topicInput = document.getElementById("topicInput");
+      const resultCountInput = document.getElementById("resultCount");
+      const searchBtn = document.getElementById("searchBtn");
+      const logSection = document.getElementById("logSection");
+      const logContent = document.getElementById("logContent");
+      const resultsSection = document.getElementById("resultsSection");
+      const resultsHeader = document.getElementById("resultsHeader");
+      const resultsContent = document.getElementById("resultsContent");
+      const errorBox = document.getElementById("errorBox");
+      const errorMessage = document.getElementById("errorMessage");
+
+      // Allow Enter key to trigger search
+      topicInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") search();
+      });
+
+      function addLogEntry(message, type = "status") {
+        const entry = document.createElement("div");
+        entry.className = `log-entry ${type}`;
+        entry.textContent = message;
+        logContent.appendChild(entry);
+        logSection.scrollTop = logSection.scrollHeight;
+      }
+
+      function showError(message) {
+        errorBox.classList.add("visible");
+        errorMessage.textContent = message;
+      }
+
+      function clearResults() {
+        logContent.innerHTML = "";
+        resultsContent.innerHTML = "";
+        resultsSection.classList.remove("visible");
+        errorBox.classList.remove("visible");
+        logSection.classList.add("visible");
+      }
+
+      async function search() {
+        const topic = topicInput.value.trim();
+        if (!topic) {
+          alert("Please enter a topic");
+          return;
+        }
+
+        const resultCount = parseInt(resultCountInput.value) || 10;
+
+        // Reset UI
+        clearResults();
+        searchBtn.disabled = true;
+        searchBtn.innerHTML = '<span class="spinner"></span> Searching...';
+
+        try {
+          const response = await fetch("/api/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ topic, result_count: resultCount }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error: ${response.status}`);
+          }
+
+          // Read SSE stream
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop(); // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6);
+                if (data === "[DONE]") continue;
+
+                try {
+                  const event = JSON.parse(data);
+
+                  if (event.type === "status") {
+                    addLogEntry(event.data);
+                  } else if (event.type === "error") {
+                    addLogEntry(`\n${"=".repeat(60)}`, "error");
+                    addLogEntry(`ERROR: ${event.data.message}`, "error");
+                    addLogEntry(`\nStack Trace:`, "error");
+                    addLogEntry(event.data.stack, "error");
+                    addLogEntry("=".repeat(60), "error");
+                    showError(
+                      `${event.data.message}\n\nStack Trace:\n${event.data.stack}`,
+                    );
+                  } else if (event.type === "result") {
+                    displayResults(event.data);
+                  }
+                } catch (e) {
+                  console.error("Failed to parse SSE data:", e);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          addLogEntry(`\n${"=".repeat(60)}`, "error");
+          addLogEntry(`FETCH ERROR: ${error.message}`, "error");
+          addLogEntry(`Stack Trace:\n${error.stack}`, "error");
+          addLogEntry("=".repeat(60), "error");
+          showError(`${error.message}\n\nStack Trace:\n${error.stack}`);
+        } finally {
+          searchBtn.disabled = false;
+          searchBtn.textContent = "Find Episodes";
+        }
+      }
+
+      function displayResults(data) {
+        resultsSection.classList.add("visible");
+        resultsHeader.textContent = `🎧 Top Episodes for "${data.topic}"`;
+
+        if (!data.episodes || data.episodes.length === 0) {
+          resultsContent.innerHTML = "<p>No relevant episodes found.</p>";
+          return;
+        }
+
+        resultsContent.innerHTML = data.episodes
+          .map(
+            (ep, i) => `
+        <div class="episode-card">
+          <span class="episode-number">${i + 1}</span>
+          <div class="episode-title">${escapeHtml(ep.title)}</div>
+          <a class="episode-link" href="${escapeHtml(ep.url)}" target="_blank" rel="noopener noreferrer">
+            🔗 ${escapeHtml(ep.url)}
+          </a>
+        </div>
+      `,
+          )
+          .join("");
+      }
+
+      function escapeHtml(text) {
+        if (!text) return "";
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+    </script>
+  </body>
+</html>

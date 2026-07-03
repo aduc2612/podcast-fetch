@@ -1,0 +1,15 @@
+{
+  "podcasts": ["https://open.spotify.com/show/76IHUGox6bXwXrCjDW63a1"],
+  "llm": {
+    "models": ["deepseek/deepseek-v4-flash", "openai/gpt-oss-120b"],
+    "temperature": 0.3,
+    "max_episodes_in_prompt": 1000,
+    "description_max_chars": 0,
+    "results_count": "10",
+    "reasoning_effort": "low"
+  },
+  "prompts": {
+    "system": "You are a helpful assistant that finds relevant podcast episodes for language learning. Always respond with valid JSON matching the requested schema.",
+    "user_template": "Find the {results_count} most relevant episodes for learning about \"{topic}\".\n\nAvailable episodes (number. title - description):\n{episode_list}\n\nReturn ONLY the episode numbers as JSON:\n{{\"episode_ids\": [1, 5, 12, 23]}}\n\nPick episodes whose topic matches what the user wants to learn. Sort from most relevant to least relevant (but still have to be in top {results_count})"
+  }
+}

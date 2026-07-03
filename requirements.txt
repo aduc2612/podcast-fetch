@@ -1,0 +1,7 @@
+flask>=3.0.0
+openai>=1.0.0
+spotapi>=1.0.0
+python-dotenv>=1.0.0
+pymongo>=4.0.0
+redis>=5.0.0
+gunicorn
