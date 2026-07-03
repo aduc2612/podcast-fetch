@@ -154,6 +154,31 @@
         font-size: 1.5rem;
         margin-bottom: 1.5rem;
         color: #1db954;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .copy-all-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        background: rgba(29, 185, 84, 0.15);
+        color: #1db954;
+        border: 1px solid #1db954;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.3s, transform 0.1s;
+      }
+
+      .copy-all-btn:hover {
+        background: rgba(29, 185, 84, 0.3);
+      }
+
+      .copy-all-btn:active {
+        transform: scale(0.98);
       }
 
       .episode-card {
@@ -486,12 +511,19 @@
 
       function displayResults(data) {
         resultsSection.classList.add("visible");
-        resultsHeader.textContent = `🎧 Top Episodes for "${data.topic}"`;
+        resultsHeader.innerHTML = `<span>🎧 Top Episodes for "${escapeHtml(data.topic)}"</span>`;
 
         if (!data.episodes || data.episodes.length === 0) {
           resultsContent.innerHTML = "<p>No relevant episodes found.</p>";
           return;
         }
+
+        // Add Copy All button
+        const copyBtn = document.createElement("button");
+        copyBtn.className = "copy-all-btn";
+        copyBtn.textContent = "📋 Copy All";
+        copyBtn.addEventListener("click", () => copyAllEpisodes(data.episodes));
+        resultsHeader.appendChild(copyBtn);
 
         resultsContent.innerHTML = data.episodes
           .map(
@@ -506,6 +538,22 @@
       `,
           )
           .join("");
+      }
+
+      function copyAllEpisodes(episodes) {
+        const text = episodes
+          .map((ep, i) => `${i + 1}. ${ep.title}\n${ep.url}`)
+          .join("\n\n");
+
+        navigator.clipboard.writeText(text).then(() => {
+          const btn = document.querySelector(".copy-all-btn");
+          const original = btn.textContent;
+          btn.textContent = "✅ Copied!";
+          setTimeout(() => { btn.textContent = original; }, 2000);
+        }).catch((err) => {
+          console.error("Failed to copy:", err);
+          alert("Failed to copy to clipboard");
+        });
       }
 
       function escapeHtml(text) {
