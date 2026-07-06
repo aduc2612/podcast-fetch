@@ -2,7 +2,6 @@ import os
 import json
 import re
 import sqlite3
-import threading
 import traceback
 from flask import Flask, request, jsonify, Response, send_from_directory
 from dotenv import load_dotenv
@@ -262,28 +261,7 @@ def search():
             # Step 3: Find relevant episodes using OpenRouter
             yield send_sse_event('status', '⏳ Step 3/3: Sending to OpenRouter LLM with structured output...')
 
-            # Run LLM call in a thread so we can send keepalive pings
-            # (Render proxy kills connections after ~30s of no SSE data)
-            llm_result = {}
-            def llm_worker():
-                try:
-                    llm_result['episodes'], llm_result['model'] = find_relevant_episodes(all_episodes, topic, result_count)
-                except Exception as e:
-                    llm_result['error'] = e
-
-            thread = threading.Thread(target=llm_worker)
-            thread.start()
-
-            while thread.is_alive():
-                thread.join(timeout=15)
-                if thread.is_alive():
-                    yield send_sse_event('status', '⏳ Still processing... (LLM is analyzing episodes)')
-
-            if 'error' in llm_result:
-                raise llm_result['error']
-
-            relevant_episodes = llm_result['episodes']
-            model_used = llm_result['model']
+            relevant_episodes, model_used = find_relevant_episodes(all_episodes, topic, result_count)
             yield send_sse_event('status', f'✅ Step 3/3: Done! Used model: {model_used}')
 
             # Send results
@@ -292,10 +270,11 @@ def search():
                 'episodes': relevant_episodes
             })
 
-            # Save to database
+            # Save to database (overwrite if same topic exists)
             conn = None
             try:
                 conn = sqlite3.connect(DB_PATH)
+                conn.execute('DELETE FROM saved_queries WHERE topic = ?', (topic,))
                 conn.execute(
                     'INSERT INTO saved_queries (topic, result_count, episodes) VALUES (?, ?, ?)',
                     (topic, result_count, json.dumps(relevant_episodes))
